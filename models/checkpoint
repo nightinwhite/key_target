@@ -1,0 +1,6 @@
+model_checkpoint_path: "e95_loc_scale_10_neg_0.2"
+all_model_checkpoint_paths: "e91_loc_scale_10_neg_0.2"
+all_model_checkpoint_paths: "e92_loc_scale_10_neg_0.2"
+all_model_checkpoint_paths: "e93_loc_scale_10_neg_0.2"
+all_model_checkpoint_paths: "e94_loc_scale_10_neg_0.2"
+all_model_checkpoint_paths: "e95_loc_scale_10_neg_0.2"
