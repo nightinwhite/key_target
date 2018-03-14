@@ -7,12 +7,8 @@ import cv2
 import common_flags
 
 def box_scale(k):
-    s_min = 0.1
-    s_max = 0.95
-    m = 6.0
-
-    s_k = s_min + (s_max - s_min)*(k - 1.0)/(m - 1.0)
-    return s_k
+    out_pixel_list = [32, 64, 128, 256, 1024, 2048, 2048]
+    return out_pixel_list[k]
 
 def build_label_box(img, anns):
     #用cv2读，注意修改下之前的norm
@@ -32,20 +28,16 @@ def build_label_box(img, anns):
         res_logist_length += tmp_w*tmp_h
         for tmp_y in range(tmp_h):
             for tmp_x in range(tmp_w):
-                s_k = box_scale(deep_num + 1)
-                s_k1 = box_scale(deep_num + 2)
-                if deep_num == 0:
-                    tmp_scale = 0.07
-                else:
-                    tmp_scale = s_k
+                s_k = box_scale(deep_num)
+                s_k1 = box_scale(deep_num+1)
                 for b_idx, br in enumerate(box_ratios):
                     count_i += 1
-                    tmp_use_scale = tmp_scale
+                    tmp_use_scale = s_k
                     if deep_num != 0 and b_idx == 0:
                         tmp_use_scale = np.sqrt(s_k * s_k1)
 
-                    default_w = tmp_use_scale * np.sqrt(br)
-                    default_h = tmp_use_scale / np.sqrt(br)
+                    default_w = tmp_use_scale * br
+                    default_h = tmp_use_scale / br
                     # print(tmp_use_scale, np.sqrt(s_k * s_k1), default_w, default_h)
                     c_x = (tmp_x + 0.5) / float(tmp_w)
                     c_y = (tmp_y + 0.5) / float(tmp_h)
@@ -61,24 +53,35 @@ def build_label_box(img, anns):
                         a_h = ann[1][3]
                         a_x = (a_x + 0.5) / float(img_w)
                         a_y = (a_y + 0.5) / float(img_h)
-                        a_w = (a_w) / float(img_w)
-                        a_h = (a_h) / float(img_h)
+                        a_w = (a_w) / float(default_w)
+                        a_h = (a_h) / float(default_h)
                         #对坐标，长宽进行百分比处理
-                        tmp_jac_value = calc_jaccard(rec_centre_To_rec_corner_L([c_x, c_y, default_w, default_h]), rec_centre_To_rec_corner_L([a_x, a_y, a_w, a_h]))
+                        tmp_jac_value = calc_jaccard(rec_centre_To_rec_corner_L([c_x, c_y, 1, 1]), rec_centre_To_rec_corner_L([a_x, a_y, a_w, a_h]))
                         # print ([c_x, c_y, default_w, default_h],[a_x, a_y, a_w, a_h], tmp_jac_value)
                         if tmp_jac_value > tmp_max_jac_value:
                             tmp_max_jac_value = tmp_jac_value
                             tmp_class = a_class
                             tmp_box = [a_x, a_y, a_w, a_h]
                     # print(tmp_max_jac_value, c_x, c_y, default_w, default_h)
+
                     if tmp_max_jac_value < 0.5:
                         tmp_class = class_num
                         tmp_box = [0, 0, 0, 0]
                         tmp_mask = 1
                     else:
-                        tmp_box = [tmp_box[0] - c_x, tmp_box[1] - c_y, tmp_box[2] - default_w, tmp_box[3] - default_h]
+                        # print("test-------------------")
+                        # print(tmp_box)
+                        tmp_box = [(tmp_box[0] - c_x)*img_w/default_w, (tmp_box[1] - c_y)*img_h/default_h, tmp_box[2] - 1, tmp_box[3] - 1]
                         tmp_mask = 0
-                    # print(tmp_box, tmp_mask, tmp_class)
+                        # print(tmp_box)
+                        # print([c_x, c_y, 1, 1])
+                        # print("test-------------------")
+                        for t in range(len(tmp_box)):
+                            if tmp_box[t] > 1.:
+                                tmp_box[t] = 1.
+                            if tmp_box[t] < -1.:
+                                tmp_box[t] = -1.
+
                     res_box_list.append(tmp_box)
                     res_box_mask.append(tmp_mask)
                     res_class_list.append(tmp_class)
@@ -89,16 +92,16 @@ if __name__ == '__main__':
     imgs_path = "/home/hp/Data/train_data/slice_imgs/"
     class_ann_path = "/home/hp/Data/train_data/slice_class_anns/"
     box_ann_path = "/home/hp/Data/train_data/slice_box_anns/"
-    class_save_path = "/home/hp/Data/train_data/train_class_anns/"
+    class_save_path = "/home/hp/Data/train_data/train_class_anns_new/"
     if os.path.exists(class_save_path) == False:
         os.mkdir(class_save_path)
-    box_save_path = "/home/hp/Data/train_data/train_box_anns/"
+    box_save_path = "/home/hp/Data/train_data/train_box_anns_new/"
     if os.path.exists(box_save_path) == False:
         os.mkdir(box_save_path)
-    mask_save_path = "/home/hp/Data/train_data/train_box_masks/"
+    mask_save_path = "/home/hp/Data/train_data/train_box_masks_new/"
     if os.path.exists(mask_save_path) == False:
         os.mkdir(mask_save_path)
-    length_save_path = "/home/hp/Data/train_data/train_logist_lengths/"
+    length_save_path = "/home/hp/Data/train_data/train_logist_lengths_new/"
     if os.path.exists(length_save_path) == False:
         os.mkdir(length_save_path)
     img_names = os.listdir(imgs_path)

@@ -7,6 +7,7 @@ import variables_collection
 from read_data import data_reader
 import numpy as np
 import sys
+import time
 
 sys.setrecursionlimit(1000000)
 # hyper parameter
@@ -21,7 +22,7 @@ iteration = FLAGS.iteration
 
 # build model
 
-# train_imgs = tf.placeholder("float", [32, 64, 64, 3])  # batch_size, H, W, C
+# train_imgs = tf.placeholder("float", [32, 514, 257, 3])  # batch_size, H, W, C
 # train_class_labels = tf.placeholder(tf.int32, [32, 8208])  # batch_size, logist_length
 # train_loc_lables = tf.placeholder("float", [32, 8208, 4])  # batch_size, logist_length, box_corners
 # train_mask = tf.placeholder("float", [32, 8208])  # batch_size, logist_length
@@ -58,20 +59,20 @@ summary_writer = tf.summary.FileWriter("Summary/")
 
 # train_op:
 train_op = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum).minimize(total_loss)
-
+print("here!")
 # session and init
 sess = tf.InteractiveSession()
 sess.run(tf.global_variables_initializer())
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_loc_scale_10_neg_0.2".format(119))
+saver.restore(sess, "models/e{0}_pixel_rate".format(4))
 
 # data reader config
 imgs_path = "/home/hp/Data/train_data/slice_imgs"
-class_path = "/home/hp/Data/train_data/train_class_anns"
-boxs_path = "/home/hp/Data/train_data/train_box_anns"
-masks_path = "/home/hp/Data/train_data/train_box_masks"
-logist_length_path = "/home/hp/Data/train_data/train_logist_lengths"
+class_path = "/home/hp/Data/train_data/train_class_anns_new"
+boxs_path = "/home/hp/Data/train_data/train_box_anns_new"
+masks_path = "/home/hp/Data/train_data/train_box_masks_new"
+logist_length_path = "/home/hp/Data/train_data/train_logist_lengths_new"
 data_reader = data_reader(imgs_path, class_path, boxs_path, masks_path, logist_length_path, batch_size)
 
 # test node
@@ -108,7 +109,9 @@ for e in range(epoch):
     e_total_loss = 0
     e_class_acc = 0
     for i in range(iteration):
+        # start_time = time.time()
         data_imgs, data_class_s, data_boxs, data_masks, data_logist_lengths = data_reader.read_data()
+        # print(time.time() - start_time)
         _, tmp_class_loss, tmp_loc_loss, tmp_total_loss, tmp_class_acc = \
             sess.run([train_op, class_loss, loc_loss, total_loss, class_acc],
                      feed_dict={train_imgs: data_imgs,
@@ -117,13 +120,13 @@ for e in range(epoch):
                                 train_mask: data_masks,
                                 train_logist_length: data_logist_lengths})
 
-        if i % 10 == 0:
-            summary_data = sess.run(all_summary, feed_dict={train_imgs: data_imgs,
-                                train_class_labels: data_class_s,
-                                train_loc_lables: data_boxs,
-                                train_mask: data_masks,
-                                train_logist_length: data_logist_lengths})
-            summary_writer.add_summary(summary_data)
+        # if i % 10 == 0:
+        #     summary_data = sess.run(all_summary, feed_dict={train_imgs: data_imgs,
+        #                         train_class_labels: data_class_s,
+        #                         train_loc_lables: data_boxs,
+        #                         train_mask: data_masks,
+        #                         train_logist_length: data_logist_lengths})
+        #     summary_writer.add_summary(summary_data)
 
         e_class_loss += tmp_class_loss
         e_loc_loss += tmp_loc_loss
@@ -133,5 +136,5 @@ for e in range(epoch):
         sys.stdout.write("{4}/{5}:class_loss:{0}, loc_loss:{1}, total_loss:{2}, class_acc:{3}".format(e_class_loss/(i+1), e_loc_loss/(i+1), e_total_loss/(i+1), e_class_acc/(i+1), e, i))
         sys.stdout.flush()
     print("")
-    saver.save(sess, "models/e{0}_loc_scale_10_neg_0.2".format(e))
+    saver.save(sess, "models/e{0}_pixel_rate".format(e))
 

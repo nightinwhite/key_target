@@ -1,7 +1,7 @@
 # coding:utf-8
 import tensorflow as tf
 from tensorflow.python.platform import flags
-from vgg16 import Vgg16
+from Inception_new import Inception_v3
 from tensorflow.contrib.layers import xavier_initializer
 import variables_collection
 class SSD_Net:
@@ -17,26 +17,29 @@ class SSD_Net:
         return channels//4
 
     def encoder(self, x, is_training=True, reuse=False):
-        vgg_net = Vgg16()
-        vgg_net.encoder(x)
+        x = x / 255.
+        x = x - 0.5
+        x = x * 2.5
+        inception_net = Inception_v3(final_endpoint="Mixed_p10_a", depth_multiplier=0.5, min_depth=32, is_training=is_training)
+        inception_p10_a = inception_net.ops(x, scope="Inception_v3")
         with tf.variable_scope(self.scope, reuse=False):
-            self.conv6 = self.conv_layer(vgg_net.conv5_3, [3, 3], self.channel_scale(512), self.channel_scale(1024), is_training, scope="conv6")
+            self.conv6 = self.conv_layer(inception_net.key_point["Mixed_p8_a"], [3, 3], self.channel_scale(512), self.channel_scale(1024), is_training, scope="conv6")
             self.conv7 = self.conv_layer(self.conv6, [1, 1], self.channel_scale(1024), self.channel_scale(1024), is_training, scope="conv7")
 
-            self.conv8_1 = self.conv_layer(self.conv7, [1, 1], self.channel_scale(1024), self.channel_scale(256), is_training, scope="conv8_1")
-            self.conv8_2 = self.conv_layer(self.conv8_1, [3, 3], self.channel_scale(256), self.channel_scale(512), is_training, scope="conv8_2", stride=2)
+            self.conv8_1 = self.conv_layer(inception_net.key_point["Mixed_p8_b"], [1, 1], self.channel_scale(1024), self.channel_scale(256), is_training, scope="conv8_1")
+            self.conv8_2 = self.conv_layer(self.conv8_1, [3, 3], self.channel_scale(256), self.channel_scale(512), is_training, scope="conv8_2")
 
-            self.conv9_1 = self.conv_layer(self.conv8_2, [1, 1], self.channel_scale(512), self.channel_scale(128), is_training, scope="conv9_1")
-            self.conv9_2 = self.conv_layer(self.conv9_1, [3, 3], self.channel_scale(128), self.channel_scale(256), is_training, scope="conv9_2",stride=2)
+            self.conv9_1 = self.conv_layer(inception_net.key_point["Mixed_p9_a"], [1, 1], self.channel_scale(512), self.channel_scale(128), is_training, scope="conv9_1")
+            self.conv9_2 = self.conv_layer(self.conv9_1, [3, 3], self.channel_scale(128), self.channel_scale(256), is_training, scope="conv9_2")
 
-            self.conv10_1 = self.conv_layer(self.conv9_2, [1, 1], self.channel_scale(256), self.channel_scale(128), is_training, scope="conv10_1")
-            self.conv10_2 = self.conv_layer(self.conv10_1, [3, 3], self.channel_scale(128), self.channel_scale(256), is_training, scope="conv10_2", stride=2)
+            self.conv10_1 = self.conv_layer(inception_net.key_point["Mixed_p9_b"], [1, 1], self.channel_scale(256), self.channel_scale(128), is_training, scope="conv10_1")
+            self.conv10_2 = self.conv_layer(self.conv10_1, [3, 3], self.channel_scale(128), self.channel_scale(256), is_training, scope="conv10_2")
 
-            self.p11 = tf.nn.avg_pool(self.conv10_2, [1, 3, 3, 1], [1, 1, 1, 1], "SAME")
+            self.p11 = tf.nn.avg_pool(inception_p10_a, [1, 3, 3, 1], [1, 1, 1, 1], "SAME")
 
             all_class_num = self.class_num + 1
 
-            self.out1 = self.conv_layer(vgg_net.conv4_3, [3, 3], self.channel_scale(512), self.layer_boxs[0]*(all_class_num + 4), is_training, scope="out1",
+            self.out1 = self.conv_layer(inception_net.key_point["MaxPool_p7_3x3"], [3, 3], self.channel_scale(192), self.layer_boxs[0]*(all_class_num + 4), is_training, scope="out1",
                                    activation_fn=None)
             self.out2 = self.conv_layer(self.conv7, [3, 3], self.channel_scale(1024), self.layer_boxs[1]* (all_class_num + 4), is_training, scope="out2",
                                    activation_fn=None)
@@ -48,10 +51,10 @@ class SSD_Net:
                                    activation_fn=None)
             self.out6 = self.conv_layer(self.p11, [3, 3], self.channel_scale(256), self.layer_boxs[5]* (all_class_num + 4), is_training, scope="out6",
                                    activation_fn=None)
-
             self.outs = [self.out1, self.out2, self.out3, self.out4, self.out5, self.out6]
             self.outfs = []
             for i, out in enumerate(self.outs):
+                print(out.get_shape())
                 tmp_outf = tf.reshape(out, [self.flags.batch_size, -1, all_class_num+4])
                 self.outfs.append(tmp_outf)
             self.formatted_outs = tf.concat(self.outfs, 1)
@@ -90,6 +93,7 @@ class SSD_Net:
         return tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
 
     def conv_layer(self, input, kernel_size, channel_in, channel_out, is_training, scope, stride=1, activation_fn = tf.nn.relu):
+        channel_in = input.get_shape()[-1]
         with tf.variable_scope(scope):
             conv_weight = tf.get_variable("conv_weight", [kernel_size[0], kernel_size[1], channel_in, channel_out],
                                           initializer=xavier_initializer())

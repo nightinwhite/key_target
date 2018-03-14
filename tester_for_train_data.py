@@ -12,12 +12,10 @@ from utils import *
 import cv2
 
 def box_scale(k):
-    s_min = 0.1
-    s_max = 0.95
-    m = 6.0
+    out_pixel_list = [32, 64, 128, 256, 1024, 2048, 2048]
+    return out_pixel_list[k]
 
-    s_k = s_min + (s_max - s_min)*(k - 1.0)/(m - 1.0)
-    return s_k
+
 
 def build_list_map(img):
     #用cv2读，注意修改下之前的norm
@@ -31,19 +29,15 @@ def build_list_map(img):
         tmp_h, tmp_w = shape_method(img_h, img_w)
         for tmp_y in range(tmp_h):
             for tmp_x in range(tmp_w):
-                s_k = box_scale(deep_num + 1)
-                s_k1 = box_scale(deep_num + 2)
-                if deep_num == 0:
-                    tmp_scale = 0.07
-                else:
-                    tmp_scale = s_k
+                s_k = box_scale(deep_num)
+                s_k1 = box_scale(deep_num + 1)
                 for b_idx, br in enumerate(box_ratios):
-                    tmp_use_scale = tmp_scale
+                    tmp_use_scale = s_k
                     if deep_num != 0 and b_idx == 0:
                         tmp_use_scale = np.sqrt(s_k * s_k1)
 
-                    default_w = tmp_use_scale * np.sqrt(br)
-                    default_h = tmp_use_scale / np.sqrt(br)
+                    default_w = tmp_use_scale * br
+                    default_h = tmp_use_scale / br
                     # print(tmp_use_scale, np.sqrt(s_k * s_k1), default_w, default_h)
                     c_x = (tmp_x + 0.5) / float(tmp_w)
                     c_y = (tmp_y + 0.5) / float(tmp_h)

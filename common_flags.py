@@ -12,3 +12,4 @@ def define():
     tf.app.flags.DEFINE_float("learning_rate", 1e-3, "学习率")
     tf.app.flags.DEFINE_float("momentum", 0.9, "动量")
     tf.app.flags.DEFINE_float("weight_decay", 0.0001, "l2_loss")
+    tf.app.flags.DEFINE_float("Conv_W_init_stddev", 0.1, "l2_loss")

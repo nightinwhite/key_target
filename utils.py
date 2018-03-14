@@ -34,41 +34,43 @@ import cv2
 
 
 def get_out1_shape(img_height, img_width):
-    out_h = int((int((int((img_height + 0.5)/2) + 0.5)/2) + 0.5)/2)
-    out_w = int((int((int((img_width + 0.5)/2) + 0.5)/2) + 0.5)/2)
+    out_h = int((int((int((img_height - 2 + 0.5) / 2) - 4) / 2 + 0.5) - 4) / 2 + 0.5)
+    out_w = int((int((int((img_width - 2 + 0.5) / 2) - 4) / 2 + 0.5) - 4) / 2 + 0.5)
     return out_h, out_w
 
 
 def get_out2_shape(img_height, img_width):
     out_h, out_w = get_out1_shape(img_height, img_width)
-    out_h = int((out_h + 0.5)/2)
-    out_w = int((out_w + 0.5)/2)
+    out_h = int(out_h / 2 + 0.5)
+    out_w = int(out_w / 2 + 0.5)
     return out_h, out_w
 
 
 def get_out3_shape(img_height, img_width):
     out_h, out_w = get_out2_shape(img_height, img_width)
-    out_h = int((out_h + 0.5) / 2)
-    out_w = int((out_w + 0.5) / 2)
+    out_h = int(out_h / 2 + 0.5)
+    out_w = int(out_w / 2 + 0.5)
     return out_h, out_w
 
 
 def get_out4_shape(img_height, img_width):
     out_h, out_w = get_out3_shape(img_height, img_width)
-    out_h = int((out_h + 0.5) / 2)
-    out_w = int((out_w + 0.5) / 2)
+    out_h = int(out_h / 2 + 0.5)
+    out_w = int(out_w / 2 + 0.5)
     return out_h, out_w
 
 
 def get_out5_shape(img_height, img_width):
     out_h, out_w = get_out4_shape(img_height, img_width)
-    out_h = int((out_h + 0.5) / 2)
-    out_w = int((out_w + 0.5) / 2)
+    out_h = int(out_h / 2 + 0.5)
+    out_w = int(out_w / 2 + 0.5)
     return out_h, out_w
 
 
 def get_out6_shape(img_height, img_width):
     out_h, out_w = get_out5_shape(img_height, img_width)
+    out_h = int(out_h/ 2 + 0.5)
+    out_w = int(out_w/ 2 + 0.5)
     return out_h, out_w
 
 
@@ -234,4 +236,15 @@ def calc_intersection(r1, r2):
     return 0
 
 if __name__ == '__main__':
-    print(get_out6_shape(256, 256))
+    print(get_out1_shape(514, 257))
+    print(get_out2_shape(514, 257))
+    print(get_out3_shape(514, 257))
+    print(get_out4_shape(514, 257))
+    print(get_out5_shape(514, 257))
+    print(get_out6_shape(514, 257))
+    # (32, 61, 29, 72)
+    # (32, 31, 15, 72)
+    # (32, 16, 8, 72)
+    # (32, 8, 4, 72)
+    # (32, 4, 2, 72)
+    # (32, 2, 1, 72)
