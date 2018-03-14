@@ -103,7 +103,7 @@ saver = tf.train.Saver()
 saver.restore(sess, "models/e{0}_loc_scale_10_neg_0.2".format(94))
 
 test_imgs = []
-test_img = cv2.imread("/home/hp/Data/key_target_data/micai/guonei/mn38.tif")
+test_img = cv2.imread("/home/hp/Data/train_data/slice_imgs/mn11_1_0_.png")
 test_imgs.append(test_img)
 res_preds,res_locs = sess.run([model_pred, model.pred_locs], feed_dict={train_imgs:test_imgs})
 
