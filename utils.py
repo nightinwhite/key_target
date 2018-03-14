@@ -234,4 +234,9 @@ def calc_intersection(r1, r2):
     return 0
 
 if __name__ == '__main__':
+    print(get_out1_shape(256, 256))
+    print(get_out2_shape(256, 256))
+    print(get_out3_shape(256, 256))
+    print(get_out4_shape(256, 256))
+    print(get_out5_shape(256, 256))
     print(get_out6_shape(256, 256))
