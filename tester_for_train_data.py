@@ -79,7 +79,7 @@ sess.run(tf.global_variables_initializer())
 
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_loc_scale_10_neg_0.2".format(94))
+saver.restore(sess, "models/e{0}_pixel_rate".format(17))
 
 test_imgs = []
 test_name = "mn323_0_1_"

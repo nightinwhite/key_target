@@ -65,7 +65,7 @@ sess = tf.InteractiveSession()
 sess.run(tf.global_variables_initializer())
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_pixel_rate".format(4))
+saver.restore(sess, "models/e{0}_pixel_rate".format(17))
 
 # data reader config
 imgs_path = "/home/hp/Data/train_data/slice_imgs"

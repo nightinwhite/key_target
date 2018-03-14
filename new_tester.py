@@ -12,12 +12,10 @@ from utils import *
 import cv2
 
 def box_scale(k):
-    s_min = 0.1
-    s_max = 0.95
-    m = 6.0
+    out_pixel_list = [32, 64, 128, 256, 1024, 2048, 2048]
+    return out_pixel_list[k]
 
-    s_k = s_min + (s_max - s_min)*(k - 1.0)/(m - 1.0)
-    return s_k
+
 
 def build_list_map(img):
     #用cv2读，注意修改下之前的norm
@@ -31,19 +29,15 @@ def build_list_map(img):
         tmp_h, tmp_w = shape_method(img_h, img_w)
         for tmp_y in range(tmp_h):
             for tmp_x in range(tmp_w):
-                s_k = box_scale(deep_num + 1)
-                s_k1 = box_scale(deep_num + 2)
-                if deep_num == 0:
-                    tmp_scale = 0.07
-                else:
-                    tmp_scale = s_k
+                s_k = box_scale(deep_num)
+                s_k1 = box_scale(deep_num + 1)
                 for b_idx, br in enumerate(box_ratios):
-                    tmp_use_scale = tmp_scale
+                    tmp_use_scale = s_k
                     if deep_num != 0 and b_idx == 0:
                         tmp_use_scale = np.sqrt(s_k * s_k1)
 
-                    default_w = tmp_use_scale * np.sqrt(br)
-                    default_h = tmp_use_scale / np.sqrt(br)
+                    default_w = tmp_use_scale * br
+                    default_h = tmp_use_scale / br
                     # print(tmp_use_scale, np.sqrt(s_k * s_k1), default_w, default_h)
                     c_x = (tmp_x + 0.5) / float(tmp_w)
                     c_y = (tmp_y + 0.5) / float(tmp_h)
@@ -100,10 +94,10 @@ sess.run(tf.global_variables_initializer())
 
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_loc_scale_10_neg_0.2".format(94))
+saver.restore(sess, "models/e{0}_pixel_rate".format(17))
 
 test_imgs = []
-test_img = cv2.imread("/home/hp/Data/key_target_data/micai/guonei/mn38.tif")
+test_img = cv2.imread("/home/hp/Data/train_data/slice_imgs/mn323_0_1_.png")
 test_imgs.append(test_img)
 res_preds,res_locs = sess.run([model_pred, model.pred_locs], feed_dict={train_imgs:test_imgs})
 
@@ -127,10 +121,10 @@ for i in range(len(test_imgs)):
             tmp_default_h = tmp_default_box[3]
             tmp_default_map_w = tmp_default_box[4]
             tmp_default_map_h = tmp_default_box[5]
-            tmp_real_c_x = (tmp_default_c_x + tmp_loc[j][0]) * tmp_img_w
-            tmp_real_c_y = (tmp_default_c_y + tmp_loc[j][1]) * tmp_img_h
-            tmp_real_w = (tmp_default_w + tmp_loc[j][2]) * tmp_img_w
-            tmp_real_h = (tmp_default_h + tmp_loc[j][3]) * tmp_img_h
+            tmp_real_c_x = tmp_default_c_x*tmp_img_w + tmp_loc[j][0] * tmp_default_w
+            tmp_real_c_y = tmp_default_c_y*tmp_img_h + tmp_loc[j][1] * tmp_default_h
+            tmp_real_w = tmp_default_w + tmp_loc[j][2] * tmp_default_w
+            tmp_real_h = tmp_default_h + tmp_loc[j][3] * tmp_default_h
             if tmp_real_w <0 or tmp_real_h < 0:
                 continue
             tmp_all_boxs.append(
