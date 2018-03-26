@@ -4,6 +4,8 @@ from tensorflow.python.platform import flags
 from Inception_new import Inception_v3
 from tensorflow.contrib.layers import xavier_initializer
 import variables_collection
+import tensorflow.contrib.slim as slim
+from tensorflow.python.framework import ops
 class SSD_Net:
     def __init__(self):
         self.flags = flags.FLAGS
@@ -40,17 +42,17 @@ class SSD_Net:
             all_class_num = self.class_num + 1
 
             self.out1 = self.conv_layer(inception_net.key_point["MaxPool_p7_3x3"], [3, 3], self.channel_scale(192), self.layer_boxs[0]*(all_class_num + 4), is_training, scope="out1",
-                                   activation_fn=None)
+                                   activation_fn=None, is_bn= False)
             self.out2 = self.conv_layer(self.conv7, [3, 3], self.channel_scale(1024), self.layer_boxs[1]* (all_class_num + 4), is_training, scope="out2",
-                                   activation_fn=None)
+                                   activation_fn=None,is_bn= False)
             self.out3 = self.conv_layer(self.conv8_2, [3, 3], self.channel_scale(512), self.layer_boxs[2]* (all_class_num + 4), is_training, scope="out3",
-                                   activation_fn=None)
+                                   activation_fn=None,is_bn= False)
             self.out4 = self.conv_layer(self.conv9_2, [3, 3], self.channel_scale(256), self.layer_boxs[3]* (all_class_num + 4), is_training, scope="out4",
-                                   activation_fn=None)
+                                   activation_fn=None,is_bn= False)
             self.out5 = self.conv_layer(self.conv10_2, [3, 3], self.channel_scale(256), self.layer_boxs[4]* (all_class_num + 4), is_training, scope="out5",
-                                   activation_fn=None)
+                                   activation_fn=None,is_bn= False)
             self.out6 = self.conv_layer(self.p11, [3, 3], self.channel_scale(256), self.layer_boxs[5]* (all_class_num + 4), is_training, scope="out6",
-                                   activation_fn=None)
+                                   activation_fn=None,is_bn= False)
             self.outs = [self.out1, self.out2, self.out3, self.out4, self.out5, self.out6]
             self.outfs = []
             for i, out in enumerate(self.outs):
@@ -78,21 +80,17 @@ class SSD_Net:
                 batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2])
             ema = tf.train.ExponentialMovingAverage(decay=decay)
 
-            def mean_var_update_when_training():
-                ema_apply_op = ema.apply([batch_mean, batch_var])
-                with tf.control_dependencies([ema_apply_op]):
-                    return tf.identity(batch_mean), tf.identity(batch_var)
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                mean = tf.identity(batch_mean)
+                var = tf.identity(batch_var)
+            if is_training == False:
+                mean = ema.average(batch_mean)
+                var = ema.average(batch_var)
 
-            def mean_var_update_when_not_training():
-                return ema.average(batch_mean), ema.average(batch_var)
-            if is_training:
-                mean, var = mean_var_update_when_training()
-            else:
-                mean, var = mean_var_update_when_not_training()
+            return tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
 
-        return tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
-
-    def conv_layer(self, input, kernel_size, channel_in, channel_out, is_training, scope, stride=1, activation_fn = tf.nn.relu):
+    def conv_layer(self, input, kernel_size, channel_in, channel_out, is_training, scope, stride=1, activation_fn = tf.nn.relu, is_bn = True):
         channel_in = input.get_shape()[-1]
         with tf.variable_scope(scope):
             conv_weight = tf.get_variable("conv_weight", [kernel_size[0], kernel_size[1], channel_in, channel_out],
@@ -101,7 +99,9 @@ class SSD_Net:
             variables_collection.conv_weights.append(conv_weight)
             conv_res = tf.nn.conv2d(input, conv_weight, [1, stride, stride, 1], padding="SAME")
 
-            conv_res = self.batch_norm(conv_res, is_training=is_training)
+            # conv_res = slim.batch_norm(conv_res,decay=0.997, epsilon=0.01,is_training=is_training,updates_collections=ops.GraphKeys.UPDATE_OPS)
+            if is_bn:
+                conv_res = self.batch_norm(conv_res, is_training)
             if activation_fn is None:
                 return conv_res
             else:

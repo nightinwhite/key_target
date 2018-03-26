@@ -18,7 +18,7 @@ def build_loss(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_
 
         positives_num = tf.reduce_sum(positives_mask, axis=1)
         negatives_num = positives_num * FLAGS.negatives_scale
-        negatives_num = tf.minimum(negatives_num, anno_logist_length*6)
+        negatives_num = tf.minimum(negatives_num, anno_logist_length)
         negatives_num = tf.to_int32(negatives_num)
 
         pred_negatives_top_labels = pred_top_labels * (anno_masks)
@@ -35,16 +35,20 @@ def build_loss(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_
         active_mask = positives_mask + pred_negatives_mask
 
         class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_labels,
-                                                                     labels=anno_labels) * active_mask
+                                                                    labels=anno_labels) * active_mask
         class_loss = tf.reduce_sum(class_loss, axis=1) / (1e-5 + tf.reduce_sum(active_mask, axis=1))
         sum_class_loss = tf.reduce_mean(class_loss)
         loc_loss = tf.reduce_sum(smooth_l1(pred_locs - anno_locs), axis=2) * active_mask
-        loc_loss = tf.reduce_sum(loc_loss, axis=1) / (1e-5 + tf.reduce_sum(active_mask, axis=1))* 10
+        loc_loss = tf.reduce_sum(loc_loss, axis=1) / (1e-5 + tf.reduce_sum(active_mask, axis=1)) * 10
         sum_loc_loss = tf.reduce_mean(loc_loss)
         total_loss = tf.reduce_mean(loss_alpha * class_loss + (1.0 - loss_alpha) * loc_loss) * 2
-        acc = tf.reduce_sum(tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels))*(1 - anno_masks))
-        acc = acc / tf.reduce_sum((positives_mask))
-        return sum_class_loss, sum_loc_loss, total_loss, acc
+        acc = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * positives_mask)
+        acc = acc / tf.reduce_sum(positives_mask)
+        acc_all = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * active_mask)
+        acc_all = acc_all / tf.reduce_sum(active_mask)
+        return sum_class_loss, sum_loc_loss, total_loss, acc, acc_all
 
 
 def build_loss_v2(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_logist_length):
@@ -55,12 +59,14 @@ def build_loss_v2(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, an
         positives_mask = 1 - anno_masks
 
         pred_negatives_top_labels = pred_top_labels * (anno_masks)
-        pred_negatives_mask = pred_negatives_top_labels - 0.2
+        pred_negatives_mask = pred_negatives_top_labels - 0.5
         pred_negatives_mask = pred_negatives_mask < 0
         pred_negatives_mask = tf.cast(pred_negatives_mask, tf.float32)
-
+        neg_num = tf.reduce_sum(pred_negatives_mask, axis=1)
+        pos_num = tf.reduce_sum(positives_mask, axis=1)
         # return pred_negatives_mask, pred_negatives_top_labels
-
+        adjust_rate = neg_num/pos_num
+        # adjust_positives_mask = tf.multiply(positives_mask,  adjust_rate)
         active_mask = positives_mask + pred_negatives_mask
 
         class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_labels,
@@ -72,9 +78,61 @@ def build_loss_v2(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, an
         sum_loc_loss = tf.reduce_mean(loc_loss)
         total_loss = tf.reduce_mean(loss_alpha * class_loss + (1.0 - loss_alpha) * loc_loss) * 2
         acc = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * positives_mask)
+        acc = acc / tf.reduce_sum(positives_mask)
+        acc_all = tf.reduce_sum(
             tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * active_mask)
-        acc = acc / tf.reduce_sum(active_mask)
-        return sum_class_loss, sum_loc_loss, total_loss, acc
+        acc_all = acc_all / tf.reduce_sum(active_mask)
+        return sum_class_loss, sum_loc_loss, total_loss, acc, acc_all
+
+def build_loss_v3(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_logist_length):
+    with tf.variable_scope("Loss"):
+        loss_alpha = FLAGS.loss_alpha
+        pred_top_labels = tf.nn.softmax(pred_labels)
+        pred_top_labels = pred_top_labels[:, :, -1]
+        positives_mask = 1 - anno_masks
+
+        positives_num = tf.reduce_sum(positives_mask, axis=1)
+        negatives_num = positives_num * FLAGS.negatives_scale
+        negatives_num = tf.minimum(negatives_num, anno_logist_length)
+        negatives_num = tf.to_int32(negatives_num)
+
+
+        pred_negatives_top_labels = pred_top_labels * (anno_masks)
+        pred_negatives_mask = pred_negatives_top_labels - 0.5
+        pred_negatives_mask = pred_negatives_mask < 0
+        pred_negatives_mask = tf.cast(pred_negatives_mask, tf.float32)
+        pred_negatives_top_labels = pred_negatives_top_labels * pred_negatives_mask
+
+        pred_negatives_min_value = []
+        for i in range(FLAGS.batch_size):
+            tmp_pred_negatives_min_value, _ = tf.nn.top_k(pred_negatives_top_labels[i, :], negatives_num[i], True)
+            pred_negatives_min_value.append(tmp_pred_negatives_min_value[-1])
+
+        pred_negatives_min_value = tf.stack(pred_negatives_min_value)
+        pred_negatives_min_value = tf.expand_dims(pred_negatives_min_value, -1)
+        pred_negatives_mask = (pred_negatives_top_labels - pred_negatives_min_value) * pred_negatives_mask
+        pred_negatives_mask = pred_negatives_mask > 0
+        pred_negatives_mask = tf.cast(pred_negatives_mask, tf.float32)
+        active_mask = positives_mask + pred_negatives_mask
+
+        class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_labels,
+                                                                    labels=anno_labels) * active_mask
+        class_loss = tf.reduce_sum(class_loss, axis=1) / (1e-5 + tf.reduce_sum(active_mask, axis=1))
+        sum_class_loss = tf.reduce_mean(class_loss)
+        loc_loss = tf.reduce_sum(smooth_l1(pred_locs - anno_locs), axis=2) * positives_mask
+        loc_loss = tf.reduce_sum(loc_loss, axis=1) / (1e-5 + tf.reduce_sum(positives_mask, axis=1)) * 10
+        sum_loc_loss = tf.reduce_mean(loc_loss)
+        total_loss = tf.reduce_mean(loss_alpha * class_loss + (1.0 - loss_alpha) * loc_loss) * 2
+        acc = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * positives_mask)
+        acc = acc / tf.reduce_sum(positives_mask)
+        acc_all = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * active_mask)
+        acc_all = acc_all / tf.reduce_sum(active_mask)
+        # acc_all = tf.reduce_mean(
+        #     tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)))
+        return sum_class_loss, sum_loc_loss, total_loss, acc, acc_all
 
 
 def test_build_loss(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_logist_length):
@@ -103,9 +161,87 @@ def test_build_loss(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, 
         total_loss = tf.reduce_mean(loss_alpha * class_loss + (1.0 - loss_alpha) * loc_loss) * 2
         acc = tf.reduce_sum(
             tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * (1 - anno_masks))
-        acc = acc / tf.reduce_sum((positives_mask))
+        acc = acc / tf.reduce_sum((anno_masks))
         return sum_class_loss, sum_loc_loss, total_loss, acc
 
+def test_build_loss_v2(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_logist_length):
+    with tf.variable_scope("Loss"):
+        loss_alpha = FLAGS.loss_alpha
+        pred_top_labels = tf.nn.softmax(pred_labels)
+        pred_top_labels = pred_top_labels[:, :, -1]
+        positives_mask = 1 - anno_masks
+
+        pred_negatives_top_labels = pred_top_labels * (anno_masks)
+        pred_negatives_mask = pred_negatives_top_labels - 0.9
+        pred_negatives_mask = pred_negatives_mask < 0
+        pred_negatives_mask = tf.cast(pred_negatives_mask, tf.float32)
+
+        # return pred_negatives_mask, pred_negatives_top_labels
+
+        active_mask = positives_mask + pred_negatives_mask
+
+        class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_labels,
+                                                                    labels=anno_labels) * active_mask
+        class_loss = tf.reduce_sum(class_loss, axis=1) / (1e-5 + tf.reduce_sum(active_mask, axis=1))
+        sum_class_loss = tf.reduce_mean(class_loss)
+        loc_loss = tf.reduce_sum(smooth_l1(pred_locs - anno_locs), axis=2) * positives_mask
+        loc_loss = tf.reduce_sum(loc_loss, axis=1) / (1e-5 + tf.reduce_sum(positives_mask, axis=1)) * 10
+        sum_loc_loss = tf.reduce_mean(loc_loss)
+        total_loss = tf.reduce_mean(loss_alpha * class_loss + (1.0 - loss_alpha) * loc_loss) * 2
+        acc = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * positives_mask)
+        acc = acc / tf.reduce_sum(positives_mask)
+        acc_all = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * active_mask)
+        acc_all = acc_all / tf.reduce_sum(active_mask)
+        return sum_class_loss, sum_loc_loss, total_loss, acc, acc_all,positives_mask,pred_negatives_mask
+
+def test_build_loss_v3(pred_labels, pred_locs, anno_labels, anno_locs, anno_masks, anno_logist_length):
+    with tf.variable_scope("Loss"):
+        loss_alpha = FLAGS.loss_alpha
+        pred_top_labels = tf.nn.softmax(pred_labels)
+        pred_top_labels = pred_top_labels[:, :, -1]
+        positives_mask = 1 - anno_masks
+
+        positives_num = tf.reduce_sum(positives_mask, axis=1)
+        negatives_num = positives_num * FLAGS.negatives_scale
+        negatives_num = tf.minimum(negatives_num, anno_logist_length)
+        negatives_num = tf.to_int32(negatives_num)
+
+
+        pred_negatives_top_labels = pred_top_labels * (anno_masks)
+        pred_negatives_mask = pred_negatives_top_labels - 0.5
+        pred_negatives_mask = pred_negatives_mask < 0
+        pred_negatives_mask = tf.cast(pred_negatives_mask, tf.float32)
+        pred_negatives_top_labels = pred_negatives_top_labels * pred_negatives_mask
+
+        pred_negatives_min_value = []
+        for i in range(FLAGS.batch_size):
+            tmp_pred_negatives_min_value, _ = tf.nn.top_k(pred_negatives_top_labels[i, :], negatives_num[i], True)
+            pred_negatives_min_value.append(tmp_pred_negatives_min_value[-1])
+
+        pred_negatives_min_value = tf.stack(pred_negatives_min_value)
+        pred_negatives_min_value = tf.expand_dims(pred_negatives_min_value, -1)
+        pred_negatives_mask = (pred_negatives_top_labels - pred_negatives_min_value) * pred_negatives_mask
+        pred_negatives_mask = pred_negatives_mask > 0
+        pred_negatives_mask = tf.cast(pred_negatives_mask, tf.float32)
+        active_mask = positives_mask + pred_negatives_mask
+        # return negatives_num, pred_negatives_mask, positives_mask,active_mask
+        class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_labels,
+                                                                    labels=anno_labels) * active_mask
+        class_loss = tf.reduce_sum(class_loss, axis=1) / (1e-5 + tf.reduce_sum(active_mask, axis=1))
+        sum_class_loss = tf.reduce_mean(class_loss)
+        loc_loss = tf.reduce_sum(smooth_l1(pred_locs - anno_locs), axis=2) * positives_mask
+        loc_loss = tf.reduce_sum(loc_loss, axis=1) / (1e-5 + tf.reduce_sum(positives_mask, axis=1)) * 10
+        sum_loc_loss = tf.reduce_mean(loc_loss)
+        total_loss = tf.reduce_mean(loss_alpha * class_loss + (1.0 - loss_alpha) * loc_loss) * 2
+        acc = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * positives_mask)
+        acc = acc / tf.reduce_sum(positives_mask)
+        acc_all = tf.reduce_sum(
+            tf.to_float(tf.equal(tf.to_int32(tf.argmax(pred_labels, -1)), anno_labels)) * active_mask)
+        acc_all = acc_all / tf.reduce_sum(active_mask)
+        return acc, acc_all
 
 def build_accuracy(pred_labels, anno_labels):
     with tf.variable_scope("Accuracy"):

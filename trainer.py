@@ -36,7 +36,7 @@ model = SSD_Net()
 model.encoder(train_imgs)
 
 # model loss
-class_loss, loc_loss, total_loss, class_acc = build_loss_v2(pred_labels=model.pred_labels, pred_locs=model.pred_locs,
+class_loss, loc_loss, total_loss, class_acc,all_class_acc = build_loss_v3(pred_labels=model.pred_labels, pred_locs=model.pred_locs,
                   anno_labels=train_class_labels, anno_locs=train_loc_lables,
                   anno_masks=train_mask, anno_logist_length=train_logist_length)
 
@@ -59,13 +59,14 @@ summary_writer = tf.summary.FileWriter("Summary/")
 
 # train_op:
 train_op = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum).minimize(total_loss)
-print("here!")
+# print("here!")
 # session and init
 sess = tf.InteractiveSession()
 sess.run(tf.global_variables_initializer())
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_pixel_rate".format(17))
+saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(238))
+# print("here")
 
 # data reader config
 imgs_path = "/home/hp/Data/train_data/slice_imgs"
@@ -77,14 +78,21 @@ data_reader = data_reader(imgs_path, class_path, boxs_path, masks_path, logist_l
 
 # test node
 # data_imgs, data_class_s, data_boxs, data_masks, data_logist_lengths = data_reader.read_data()
-# test_node = test_build_loss(pred_labels=model.pred_labels, pred_locs=model.pred_locs,
+# test_node = test_build_loss_v3(pred_labels=model.pred_labels, pred_locs=model.pred_locs,
 #                   anno_labels=train_class_labels, anno_locs=train_loc_lables,
 #                   anno_masks=train_mask, anno_logist_length=train_logist_length)
-# res_mask, res_label = sess.run(test_node, feed_dict={train_imgs: data_imgs,
+# res_num, res_neg_mask, res_pos_mask ,res_act_mask, tmp_acc, tmp_all_acc, tmp_min_value= sess.run(test_node, feed_dict={train_imgs: data_imgs,
 #                                 train_class_labels: data_class_s,
 #                                 train_loc_lables: data_boxs,
 #                                 train_mask: data_masks,
 #                                 train_logist_length: data_logist_lengths})
+# print(res_num)
+# print(tmp_acc)
+# print(tmp_all_acc)
+# print(np.sum(res_pos_mask,1))
+# print(np.sum(res_neg_mask,1))
+# print(np.sum(res_act_mask,1))
+# print(tmp_min_value)
 # # res_pred = np.argmax(res, -1)
 # # tst_index = 2
 # # for i in range(res_pred.shape[1]):
@@ -108,12 +116,13 @@ for e in range(epoch):
     e_loc_loss = 0
     e_total_loss = 0
     e_class_acc = 0
+    e_all_class_acc = 0
     for i in range(iteration):
         # start_time = time.time()
         data_imgs, data_class_s, data_boxs, data_masks, data_logist_lengths = data_reader.read_data()
         # print(time.time() - start_time)
-        _, tmp_class_loss, tmp_loc_loss, tmp_total_loss, tmp_class_acc = \
-            sess.run([train_op, class_loss, loc_loss, total_loss, class_acc],
+        _, tmp_class_loss, tmp_loc_loss, tmp_total_loss, tmp_class_acc , tmp_all_class_acc= \
+            sess.run([train_op, class_loss, loc_loss, total_loss, class_acc, all_class_acc],
                      feed_dict={train_imgs: data_imgs,
                                 train_class_labels: data_class_s,
                                 train_loc_lables: data_boxs,
@@ -132,9 +141,10 @@ for e in range(epoch):
         e_loc_loss += tmp_loc_loss
         e_total_loss += tmp_total_loss
         e_class_acc += tmp_class_acc
+        e_all_class_acc += tmp_all_class_acc
         sys.stdout.write("                                                                                                      \r")
-        sys.stdout.write("{4}/{5}:class_loss:{0}, loc_loss:{1}, total_loss:{2}, class_acc:{3}".format(e_class_loss/(i+1), e_loc_loss/(i+1), e_total_loss/(i+1), e_class_acc/(i+1), e, i))
+        sys.stdout.write("{4}/{5}:class_l:{0}, loc_l:{1}, total_l:{2},acc:{3}, all_acc:{6}".format(e_class_loss/(i+1), e_loc_loss/(i+1), e_total_loss/(i+1), e_class_acc/(i+1), e, i,e_all_class_acc/(i+1)))
         sys.stdout.flush()
     print("")
-    saver.save(sess, "models/e{0}_pixel_rate".format(e))
+    saver.save(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(e))
 

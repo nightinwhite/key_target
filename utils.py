@@ -236,15 +236,22 @@ def calc_intersection(r1, r2):
     return 0
 
 if __name__ == '__main__':
-    print(get_out1_shape(514, 257))
-    print(get_out2_shape(514, 257))
-    print(get_out3_shape(514, 257))
-    print(get_out4_shape(514, 257))
-    print(get_out5_shape(514, 257))
-    print(get_out6_shape(514, 257))
+    print(get_out1_shape(514, 256))
+    print(get_out2_shape(514, 256))
+    print(get_out3_shape(514, 256))
+    print(get_out4_shape(514, 256))
+    print(get_out5_shape(514, 256))
+    print(get_out6_shape(514, 256))
     # (32, 61, 29, 72)
     # (32, 31, 15, 72)
     # (32, 16, 8, 72)
     # (32, 8, 4, 72)
     # (32, 4, 2, 72)
     # (32, 2, 1, 72)
+
+    # (32, 32)
+    # (16, 16)
+    # (8, 8)
+    # (4, 4)
+    # (2, 2)
+    # (2, 2)

@@ -40,19 +40,13 @@ class data_reader():
         tmp_box = np.load(os.path.join(self.box_path, key_name + ".npy"))
         tmp_mask = np.load(os.path.join(self.mask_path, key_name + ".npy"))
         tmp_logist_length = np.load(os.path.join(self.logist_length_path, key_name + ".npy"))
-        # print(key_name)
-        # print(tmp_img.shape)
-        # print(tmp_class.shape)
-        return tmp_img, tmp_class, tmp_box, tmp_mask, tmp_logist_length
+        return tmp_img, tmp_class, tmp_box, tmp_mask, tmp_logist_length,key_name
 
     def single_thread_fuc(self):
         while(True):
             tmp_key_index = np.random.random_integers(0, len(self.key_names) - 1)
             tmp_data = self.read_single_data(self.key_names[tmp_key_index])
             tmp_img = tmp_data[0]
-            tmp_mask = tmp_data[3]
-            if np.sum(tmp_mask) == 6*tmp_data[4]:
-                continue
             tmp_shape = tmp_img.shape
             if tmp_shape[0] == 256 and tmp_shape[1] == 256:
                 if self.data_queue256_256.qsize() < 2*self.batch_size:
@@ -107,12 +101,64 @@ class data_reader():
 
         for i in range(self.batch_size):
             tmp_data = select_queue.get()
+            # print(" -------------------- ")
+            # print(tmp_data[0].shape)
+            # print(tmp_data[1].shape)
+            # print(tmp_data[2].shape)
+            # print(tmp_data[3].shape)
+            # print(" -------------------- ")
             tmp_imgs.append(tmp_data[0])
             tmp_class_s.append(tmp_data[1])
             tmp_boxs.append(tmp_data[2])
             tmp_masks.append(tmp_data[3])
             tmp_logist_lengths.append(tmp_data[4])
-        return np.asarray(tmp_imgs), np.asarray(tmp_class_s), np.asarray(tmp_boxs), np.asarray(tmp_masks), np.asarray(tmp_logist_lengths)
+            # print(tmp_data[5])
+        tmp_imgs = np.asarray(tmp_imgs)
+        tmp_class_s = np.asarray(tmp_class_s)
+        tmp_masks = np.asarray(tmp_masks)
+        tmp_logist_lengths = np.asarray(tmp_logist_lengths)
+        return tmp_imgs, tmp_class_s, tmp_boxs, tmp_masks, tmp_logist_lengths
+
+    def test_read_data(self):
+        select_queue = None
+        select_index = None
+        while(select_queue is None):
+            can_use_queue = []
+            for i, tmp_data_queue in enumerate(self.data_queue_list):
+                if tmp_data_queue.qsize() > self.batch_size:
+                    can_use_queue.append(i)
+            if len(can_use_queue) == 0:
+                continue
+            else:
+                # print(can_use_queue)
+                select_index = np.random.random_integers(0, len(can_use_queue)-1)
+                select_queue = self.data_queue_list[select_index]
+
+        tmp_imgs = []
+        tmp_class_s = []
+        tmp_boxs = []
+        tmp_masks = []
+        tmp_logist_lengths = []
+        tmp_key_names = []
+        for i in range(self.batch_size):
+            tmp_data = select_queue.get()
+            # print(" -------------------- ")
+            # print(tmp_data[0].shape)
+            # print(tmp_data[1].shape)
+            # print(tmp_data[2].shape)
+            # print(tmp_data[3].shape)
+            # print(" -------------------- ")
+            tmp_imgs.append(tmp_data[0])
+            tmp_class_s.append(tmp_data[1])
+            tmp_boxs.append(tmp_data[2])
+            tmp_masks.append(tmp_data[3])
+            tmp_logist_lengths.append(tmp_data[4])
+            tmp_key_names.append(tmp_data[5])
+        tmp_imgs = np.asarray(tmp_imgs)
+        tmp_class_s = np.asarray(tmp_class_s)
+        tmp_masks = np.asarray(tmp_masks)
+        tmp_logist_lengths = np.asarray(tmp_logist_lengths)
+        return tmp_imgs, tmp_class_s, tmp_boxs, tmp_masks, tmp_logist_lengths,tmp_key_names
 
 
 

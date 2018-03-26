@@ -39,8 +39,8 @@ def build_list_map(img):
                     default_w = tmp_use_scale * br
                     default_h = tmp_use_scale / br
                     # print(tmp_use_scale, np.sqrt(s_k * s_k1), default_w, default_h)
-                    c_x = (tmp_x + 0.5) / float(tmp_w)
-                    c_y = (tmp_y + 0.5) / float(tmp_h)
+                    c_x = (tmp_x + 0.5) / float(tmp_w) * img_w
+                    c_y = (tmp_y + 0.5) / float(tmp_h) * img_h
                     # print([c_x, c_y, default_w, default_h, tmp_w, tmp_h], len(res_list_map))
                     res_list_map.append([c_x, c_y, default_w, default_h, tmp_w, tmp_h])
     return res_list_map
@@ -52,7 +52,7 @@ def NNM(all_box_list):
             for j in range(i+1, len(all_box_list)):
                 if all_box_list[j][2]:
                     if calc_jaccard(rec_centre_To_rec_corner_L(all_box_list[i][0]),
-                                    rec_centre_To_rec_corner_L(all_box_list[j][0])) > 0.3:
+                                    rec_centre_To_rec_corner_L(all_box_list[j][0])) > 0:
                         all_box_list[j][2] = False
     res_box_list = []
     for i in range(len(all_box_list)):
@@ -61,7 +61,7 @@ def NNM(all_box_list):
     return res_box_list
 
 class_color_map = {0:  [255, 0, 0] # blue
-                   ,1: [0, 255, 0] # green
+                   ,1: [0, 255, 0]
                    ,2: [0, 0, 255] # red
                    ,3: [255, 255, 0] #liang lan
                    ,4: [255, 0, 255] #fen
@@ -81,12 +81,12 @@ momentum = FLAGS.momentum
 learning_rate = FLAGS.learning_rate
 epoch = FLAGS.epoch
 iteration = FLAGS.iteration
-trust_rate = 0.8
+trust_rate = 0
 
 # build model
 train_imgs = tf.placeholder("float", [None, None, None, 3])  # batch_size, H, W, C
 model = SSD_Net()
-model.encoder(train_imgs,)
+model.encoder(train_imgs,False)
 model_pred = tf.nn.softmax(model.pred_labels)
 # session and init
 sess = tf.InteractiveSession()
@@ -94,10 +94,17 @@ sess.run(tf.global_variables_initializer())
 
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_pixel_rate".format(17))
+# saver.restore(sess, "models/e{0}_pixel_rate_background_0.5".format(98))#
+saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(238))#
+
 
 test_imgs = []
-test_img = cv2.imread("/home/hp/Data/train_data/slice_imgs/mn323_0_1_.png")
+test_name = "mn388_8_0_"
+test_img = cv2.imread("/home/hp/Data/train_data/slice_imgs/{0}.png".format(test_name))
+test_ann = np.load("/home/hp/Data/train_data/slice_box_anns/{0}.npy".format(test_name))
+test_class = np.load("/home/hp/Data/train_data/slice_class_anns/{0}.npy".format(test_name))
+test_train_ann =np.load("/home/hp/Data/train_data/train_box_anns_new/{0}.npy".format(test_name))
+test_train_class = np.load("/home/hp/Data/train_data/train_class_anns_new/{0}.npy".format(test_name))
 test_imgs.append(test_img)
 res_preds,res_locs = sess.run([model_pred, model.pred_locs], feed_dict={train_imgs:test_imgs})
 
@@ -113,7 +120,7 @@ for i in range(len(test_imgs)):
 
     tmp_all_boxs = []
     for j in range(tmp_pred.shape[0]):
-        if tmp_pred[j][tmp_pred_class[j]] > trust_rate:
+        if tmp_pred[j][tmp_pred_class[j]] > trust_rate and tmp_pred_class[j] != 7:
             tmp_default_box = tmp_list_map[j]
             tmp_default_c_x = tmp_default_box[0]
             tmp_default_c_y = tmp_default_box[1]
@@ -121,8 +128,8 @@ for i in range(len(test_imgs)):
             tmp_default_h = tmp_default_box[3]
             tmp_default_map_w = tmp_default_box[4]
             tmp_default_map_h = tmp_default_box[5]
-            tmp_real_c_x = tmp_default_c_x*tmp_img_w + tmp_loc[j][0] * tmp_default_w
-            tmp_real_c_y = tmp_default_c_y*tmp_img_h + tmp_loc[j][1] * tmp_default_h
+            tmp_real_c_x = tmp_default_c_x + tmp_loc[j][0] * tmp_default_w
+            tmp_real_c_y = tmp_default_c_y + tmp_loc[j][1] * tmp_default_h
             tmp_real_w = tmp_default_w + tmp_loc[j][2] * tmp_default_w
             tmp_real_h = tmp_default_h + tmp_loc[j][3] * tmp_default_h
             if tmp_real_w <0 or tmp_real_h < 0:
@@ -130,16 +137,56 @@ for i in range(len(test_imgs)):
             tmp_all_boxs.append(
                 [[tmp_real_c_x, tmp_real_c_y, tmp_real_w, tmp_real_h],
                  [tmp_pred_class[j], tmp_pred[j][tmp_pred_class[j]]], True])
-    tmp_res_boxs = NNM(tmp_all_boxs)
+    tmp_res_boxs = tmp_all_boxs
+    # tmp_res_boxs = tmp_all_boxs
+    tmp_img1 = np.copy(tmp_img)
     for res_box in tmp_res_boxs:
         if res_box[1][0]!=7:
             tmp_color = class_color_map[res_box[1][0]]
             tmp_contour = rec_centre_To_corners_L(res_box[0])
             tmp_contour = np.asarray(tmp_contour)
-            print(res_box[0])
+            # print(res_box[0])
             tst_contours = [tmp_contour]
-            tmp_img = cv2.drawContours(tmp_img, tst_contours, -1, tmp_color, 2)
-    cv2.imshow("0", tmp_img)
+            tmp_img1 = cv2.drawContours(tmp_img1, tst_contours, -1, tmp_color, 2)
+    # cv2.imwrite("{0}pixel_rate_background_0.5.png".format(test_name), tmp_img1)
+    cv2.imwrite("{0}pixel_rate_loss_V3.png".format(test_name), tmp_img1)
+    cv2.imshow("0", tmp_img1)
+    tmp_img2 = np.copy(tmp_img)
+    for m, res_box in enumerate(test_ann):
+        # print (res_box, test_class[m])
+        if test_class[m]!=7:
+            tmp_color = class_color_map[test_class[m]]
+            tmp_contour = rec_centre_To_corners_L(res_box)
+            tmp_contour = np.asarray(tmp_contour)
+            # print(res_box)
+            tst_contours = [tmp_contour]
+            tmp_img2 = cv2.drawContours(tmp_img2, tst_contours, -1, tmp_color, 2)
+    cv2.imshow("1", tmp_img2)
+    tmp_img3 = np.copy(tmp_img)
+    for j in range(tmp_pred.shape[0]):
+        if test_train_class[j] != 7:
+            tmp_default_box = tmp_list_map[j]
+            tmp_default_c_x = tmp_default_box[0]
+            tmp_default_c_y = tmp_default_box[1]
+            tmp_default_w = tmp_default_box[2]
+            tmp_default_h = tmp_default_box[3]
+            tmp_default_map_w = tmp_default_box[4]
+            tmp_default_map_h = tmp_default_box[5]
+            tmp_real_c_x = tmp_default_c_x + test_train_ann[j][0] * tmp_default_w
+            tmp_real_c_y = tmp_default_c_y + test_train_ann[j][1] * tmp_default_h
+            tmp_real_w = tmp_default_w + test_train_ann[j][2] * tmp_default_w
+            tmp_real_h = tmp_default_h + test_train_ann[j][3] * tmp_default_h
+            tmp_color = class_color_map[test_train_class[j]]
+            tmp_contour = rec_centre_To_corners_L([tmp_real_c_x,tmp_real_c_y,tmp_real_w,tmp_real_h])
+            tmp_contour = np.asarray(tmp_contour)
+            # print(res_box[0])
+            tst_contours = [tmp_contour]
+            tmp_img3 = cv2.drawContours(tmp_img3, tst_contours, -1, tmp_color, 2)
+    cv2.imshow("2", tmp_img3)
+    for j in range(tmp_pred.shape[0]):
+        if test_train_class[j] != 7:
+            print(test_train_ann[j], tmp_loc[j])
+            print(test_train_class[j], tmp_pred_class[j], tmp_pred[j][tmp_pred_class[j]])
     cv2.waitKey()
     cv2.destroyAllWindows()
 

@@ -24,19 +24,19 @@ def build_label_box(img, anns):
     res_box_list = [None for i in range(res_logist_length)]
     res_class_list = [None for i in range(res_logist_length)]
     res_box_mask = [None for i in range(res_logist_length)]
+    res_jac_value_list = [0 for i in range(res_logist_length)]
     for ann in anns:
         a_class = ann[0]
         a_x = ann[1][0]
         a_y = ann[1][1]
         a_w = ann[1][2]
         a_h = ann[1][3]
-        a_x = (a_x + 0.5) / float(img_w)
-        a_y = (a_y + 0.5) / float(img_h)
         tmp_max_jac_value = 0
         tmp_index = 0
         tmp_max_index = 0
         tmp_tst_info = []
         for deep_num, shape_method in enumerate(out_shape_methods):
+            tmp_h, tmp_w = shape_method(img_h, img_w)
             for tmp_y in range(tmp_h):
                 for tmp_x in range(tmp_w):
                     s_k = box_scale(deep_num)
@@ -48,22 +48,24 @@ def build_label_box(img, anns):
                         default_w = tmp_use_scale * br
                         default_h = tmp_use_scale / br
                         # print(tmp_use_scale, np.sqrt(s_k * s_k1), default_w, default_h)
-                        c_x = (tmp_x + 0.5) / float(tmp_w)
-                        c_y = (tmp_y + 0.5) / float(tmp_h)
+                        c_x = (tmp_x + 0.5) / tmp_w * img_w /float(default_w)
+                        c_y = (tmp_y + 0.5) / tmp_w * img_w /float(default_h)
                         # 这里源代码坐标是反的
                         tmp_class = class_num
+                        tmp_a_x = a_x /float(default_w)
+                        tmp_a_y = a_y /float(default_h)
                         tmp_a_w = (a_w) / float(default_w)
                         tmp_a_h = (a_h) / float(default_h)
                         # 对坐标，长宽进行百分比处理
                         tmp_jac_value = calc_jaccard(rec_centre_To_rec_corner_L([c_x, c_y, 1, 1]),
-                                                     rec_centre_To_rec_corner_L([a_x, a_y, tmp_a_w, tmp_a_h]))
-                        # print ([c_x, c_y, default_w, default_h],[a_x, a_y, a_w, a_h], tmp_jac_value)
+                                                     rec_centre_To_rec_corner_L([tmp_a_x, tmp_a_y, tmp_a_w, tmp_a_h]))
+                        # print(tmp_x, tmp_y, tmp_w, tmp_h,img_w, img_h)
+                        # print([c_x*default_w, c_y*default_h, default_w, default_h],[a_x, a_y, a_w, a_h], tmp_jac_value, tmp_use_scale)
                         if tmp_jac_value > tmp_max_jac_value:
                             tmp_max_jac_value = tmp_jac_value
                             tmp_max_index = tmp_index
-                            tmp_max_box = [(a_x - c_x) * img_w / default_w, (a_y - c_y) * img_h / default_h,
-                                           tmp_a_w - 1, tmp_a_h - 1]
-                            tmp_tst_info = [[c_x, c_y, default_w, default_h], [a_x, a_y, a_w, a_h]]
+                            tmp_max_box = [tmp_a_x - c_x, tmp_a_y - c_y,tmp_a_w - 1, tmp_a_h - 1]
+                            tmp_tst_info = [[c_x*default_w, c_y*default_h, default_w, default_h], [a_x, a_y, a_w, a_h]]
                         # print(tmp_max_jac_value, c_x, c_y, default_w, default_h)
                         tmp_box = [0, 0, 0, 0]
                         if tmp_jac_value < 0.5:
@@ -74,29 +76,28 @@ def build_label_box(img, anns):
                             # print("test-------------------")
                             # print(tmp_box)
                             tmp_class = a_class
-                            tmp_box = [(a_x - c_x) * img_w / default_w, (a_y - c_y) * img_h / default_h,
-                                           tmp_a_w - 1, tmp_a_h - 1]
+                            tmp_box = [tmp_a_x - c_x, tmp_a_y - c_y,tmp_a_w - 1, tmp_a_h - 1]
                             tmp_mask = 0
+
                             # print(tmp_box)
                             # print([c_x, c_y, 1, 1])
                             # print("test-------------------")
-                            for t in range(len(tmp_box)):
-                                if tmp_box[t] > 1.:
-                                    tmp_box[t] = 1.
-                                if tmp_box[t] < -1.:
-                                    tmp_box[t] = -1.
-
-                        res_box_list[tmp_index] = tmp_box
-                        res_box_mask[tmp_index] = tmp_mask
-                        res_class_list[tmp_index] = tmp_class
+                        if res_jac_value_list[tmp_index] == 0 or res_jac_value_list[tmp_index] < tmp_jac_value:
+                            # print(tmp_box,res_jac_value_list[tmp_index])
+                            res_box_list[tmp_index] = [tmp_box[0], tmp_box[1], tmp_box[2], tmp_box[3]]
+                            res_box_mask[tmp_index] = tmp_mask
+                            res_class_list[tmp_index] = tmp_class
+                            res_jac_value_list[tmp_index] = tmp_jac_value
                         tmp_index += 1
         if tmp_max_jac_value < 0.5:
-            print(tmp_max_jac_value, tmp_max_box)
-            print(tmp_tst_info)
+            # print(tmp_max_jac_value, tmp_max_box)
+            # print(tmp_tst_info)
+            # 有可能会覆盖掉其他类
             res_box_list[tmp_max_index] = tmp_max_box
             res_box_mask[tmp_max_index] = 0
             res_class_list[tmp_max_index] = a_class
-
+        print(res_box_list[tmp_max_index], res_class_list[tmp_max_index], res_jac_value_list[tmp_max_index])
+        # print(tmp_tst_info)
     return res_class_list, res_box_list, res_box_mask, res_logist_length
 
 if __name__ == '__main__':

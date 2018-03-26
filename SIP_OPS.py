@@ -64,8 +64,7 @@ class SIP_Conv2d():
                                 weights_regularizer=self.default_config["weights_regularizer"],
                                 weights_initializer=self.default_config["weights_initializer"],
                                 )
-            if tmp_batch_norm is not None:
-                net = tmp_batch_norm.ops(net,is_training = is_training)
+            net = tmp_batch_norm.ops(net,is_training = is_training)
             if activation_fn is not None:
                 net = activation_fn(net)
             return net
@@ -94,12 +93,35 @@ class SIP_Batch_Norm():
         if updates_collections is not None:
             self.default_config["updates_collections"] = updates_collections
 
+    def batch_norm(self, x, is_training, decay=0.9, eps=1e-5):
+        with tf.variable_scope("batch_norm"):
+            shape = x.get_shape().as_list()
+            assert len(shape) in [2, 3, 4]
+            norm_num = shape[-1]
+            beta = tf.get_variable(name="beta", shape=[norm_num],
+                                   dtype=tf.float32, initializer=tf.constant_initializer(0))
+            gamma = tf.get_variable(name="gamma", shape=[norm_num],
+                                    dtype=tf.float32, initializer=tf.constant_initializer(1))
+            if len(shape) == 2:
+                batch_mean, batch_var = tf.nn.moments(x, [0])
+            elif len(shape) == 3:
+                batch_mean, batch_var = tf.nn.moments(x, [0, 1])
+            else:
+                batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2])
+            ema = tf.train.ExponentialMovingAverage(decay=decay)
+
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                mean = tf.identity(batch_mean)
+                var = tf.identity(batch_var)
+            if is_training == False:
+                mean = ema.average(batch_mean)
+                var = ema.average(batch_var)
+
+            return tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
+
     def ops(self,input,is_training = None):
         if is_training is None:
             is_training = self.default_config["is_training"]
-        with tf.variable_scope("batch_norm"):
-            return slim.batch_norm(inputs=input,
-                                   decay=self.default_config["decay"],
-                                   epsilon=self.default_config["epsilon"],
-                                   updates_collections=self.default_config["updates_collections"],
-                                   is_training=is_training)
+        return  self.batch_norm(input, is_training)
+
