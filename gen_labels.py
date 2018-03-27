@@ -31,6 +31,7 @@ def build_label_box(img, anns):
         a_y = ann[1][1]
         a_w = ann[1][2]
         a_h = ann[1][3]
+        a_angle = ann[1][4]
         tmp_max_jac_value = 0
         tmp_index = 0
         tmp_max_index = 0
@@ -57,26 +58,25 @@ def build_label_box(img, anns):
                         tmp_a_w = (a_w) / float(default_w)
                         tmp_a_h = (a_h) / float(default_h)
                         # 对坐标，长宽进行百分比处理
-                        tmp_jac_value = calc_jaccard(rec_centre_To_rec_corner_L([c_x, c_y, 1, 1]),
-                                                     rec_centre_To_rec_corner_L([tmp_a_x, tmp_a_y, tmp_a_w, tmp_a_h]))
+                        tmp_jac_value = PIOU([c_x, c_y, 1, 1, 0], [tmp_a_x, tmp_a_y, tmp_a_w, tmp_a_h, a_angle])
                         # print(tmp_x, tmp_y, tmp_w, tmp_h,img_w, img_h)
                         # print([c_x*default_w, c_y*default_h, default_w, default_h],[a_x, a_y, a_w, a_h], tmp_jac_value, tmp_use_scale)
                         if tmp_jac_value > tmp_max_jac_value:
                             tmp_max_jac_value = tmp_jac_value
                             tmp_max_index = tmp_index
-                            tmp_max_box = [tmp_a_x - c_x, tmp_a_y - c_y,tmp_a_w - 1, tmp_a_h - 1]
-                            tmp_tst_info = [[c_x*default_w, c_y*default_h, default_w, default_h], [a_x, a_y, a_w, a_h]]
+                            tmp_max_box = [tmp_a_x - c_x, tmp_a_y - c_y,tmp_a_w - 1, tmp_a_h - 1, a_angle]
+                            tmp_tst_info = [[c_x*default_w, c_y*default_h, default_w, default_h], [a_x, a_y, a_w, a_h, a_angle]]
                         # print(tmp_max_jac_value, c_x, c_y, default_w, default_h)
-                        tmp_box = [0, 0, 0, 0]
+                        tmp_box = [0, 0, 0, 0, 0]
                         if tmp_jac_value < 0.5:
                             tmp_class = class_num
-                            tmp_box = [0, 0, 0, 0]
+                            tmp_box = [0, 0, 0, 0, 0]
                             tmp_mask = 1
                         else:
                             # print("test-------------------")
                             # print(tmp_box)
                             tmp_class = a_class
-                            tmp_box = [tmp_a_x - c_x, tmp_a_y - c_y,tmp_a_w - 1, tmp_a_h - 1]
+                            tmp_box = [tmp_a_x - c_x, tmp_a_y - c_y, tmp_a_w - 1, tmp_a_h - 1, a_angle]
                             tmp_mask = 0
 
                             # print(tmp_box)
@@ -84,7 +84,7 @@ def build_label_box(img, anns):
                             # print("test-------------------")
                         if res_jac_value_list[tmp_index] == 0 or res_jac_value_list[tmp_index] < tmp_jac_value:
                             # print(tmp_box,res_jac_value_list[tmp_index])
-                            res_box_list[tmp_index] = [tmp_box[0], tmp_box[1], tmp_box[2], tmp_box[3]]
+                            res_box_list[tmp_index] = [tmp_box[0], tmp_box[1], tmp_box[2], tmp_box[3], tmp_box[4]]
                             res_box_mask[tmp_index] = tmp_mask
                             res_class_list[tmp_index] = tmp_class
                             res_jac_value_list[tmp_index] = tmp_jac_value
@@ -102,22 +102,23 @@ def build_label_box(img, anns):
 
 if __name__ == '__main__':
     common_flags.define()
-    imgs_path = "/home/hp/Data/train_data/slice_imgs/"
-    class_ann_path = "/home/hp/Data/train_data/slice_class_anns/"
-    box_ann_path = "/home/hp/Data/train_data/slice_box_anns/"
-    class_save_path = "/home/hp/Data/train_data/train_class_anns_new/"
+    imgs_path = "/home/hp/Data/train_data/slice_imgs_angle/"
+    class_ann_path = "/home/hp/Data/train_data/slice_class_anns_angle/"
+    box_ann_path = "/home/hp/Data/train_data/slice_box_anns_angle/"
+    class_save_path = "/home/hp/Data/train_data/train_class_anns_new_angle/"
     if os.path.exists(class_save_path) == False:
         os.mkdir(class_save_path)
-    box_save_path = "/home/hp/Data/train_data/train_box_anns_new/"
+    box_save_path = "/home/hp/Data/train_data/train_box_anns_new_angle/"
     if os.path.exists(box_save_path) == False:
         os.mkdir(box_save_path)
-    mask_save_path = "/home/hp/Data/train_data/train_box_masks_new/"
+    mask_save_path = "/home/hp/Data/train_data/train_box_masks_new_angle/"
     if os.path.exists(mask_save_path) == False:
         os.mkdir(mask_save_path)
-    length_save_path = "/home/hp/Data/train_data/train_logist_lengths_new/"
+    length_save_path = "/home/hp/Data/train_data/train_logist_lengths_new_angle/"
     if os.path.exists(length_save_path) == False:
         os.mkdir(length_save_path)
     img_names = os.listdir(imgs_path)
+    # print(img_names)
     for i, img_name in enumerate(img_names):
         print("{0}/{1}".format(i, len(img_names)))
         f_name = img_name.split(".")[0]

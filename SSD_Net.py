@@ -41,23 +41,23 @@ class SSD_Net:
 
             all_class_num = self.class_num + 1
 
-            self.out1 = self.conv_layer(inception_net.key_point["MaxPool_p7_3x3"], [3, 3], self.channel_scale(192), self.layer_boxs[0]*(all_class_num + 4), is_training, scope="out1",
+            self.out1 = self.conv_layer(inception_net.key_point["MaxPool_p7_3x3"], [3, 3], self.channel_scale(192), self.layer_boxs[0]*(all_class_num + 5), is_training, scope="out1",
                                    activation_fn=None, is_bn= False)
-            self.out2 = self.conv_layer(self.conv7, [3, 3], self.channel_scale(1024), self.layer_boxs[1]* (all_class_num + 4), is_training, scope="out2",
+            self.out2 = self.conv_layer(self.conv7, [3, 3], self.channel_scale(1024), self.layer_boxs[1]* (all_class_num + 5), is_training, scope="out2",
                                    activation_fn=None,is_bn= False)
-            self.out3 = self.conv_layer(self.conv8_2, [3, 3], self.channel_scale(512), self.layer_boxs[2]* (all_class_num + 4), is_training, scope="out3",
+            self.out3 = self.conv_layer(self.conv8_2, [3, 3], self.channel_scale(512), self.layer_boxs[2]* (all_class_num + 5), is_training, scope="out3",
                                    activation_fn=None,is_bn= False)
-            self.out4 = self.conv_layer(self.conv9_2, [3, 3], self.channel_scale(256), self.layer_boxs[3]* (all_class_num + 4), is_training, scope="out4",
+            self.out4 = self.conv_layer(self.conv9_2, [3, 3], self.channel_scale(256), self.layer_boxs[3]* (all_class_num + 5), is_training, scope="out4",
                                    activation_fn=None,is_bn= False)
-            self.out5 = self.conv_layer(self.conv10_2, [3, 3], self.channel_scale(256), self.layer_boxs[4]* (all_class_num + 4), is_training, scope="out5",
+            self.out5 = self.conv_layer(self.conv10_2, [3, 3], self.channel_scale(256), self.layer_boxs[4]* (all_class_num + 5), is_training, scope="out5",
                                    activation_fn=None,is_bn= False)
-            self.out6 = self.conv_layer(self.p11, [3, 3], self.channel_scale(256), self.layer_boxs[5]* (all_class_num + 4), is_training, scope="out6",
+            self.out6 = self.conv_layer(self.p11, [3, 3], self.channel_scale(256), self.layer_boxs[5]* (all_class_num + 5), is_training, scope="out6",
                                    activation_fn=None,is_bn= False)
             self.outs = [self.out1, self.out2, self.out3, self.out4, self.out5, self.out6]
             self.outfs = []
             for i, out in enumerate(self.outs):
                 print(out.get_shape())
-                tmp_outf = tf.reshape(out, [self.flags.batch_size, -1, all_class_num+4])
+                tmp_outf = tf.reshape(out, [self.flags.batch_size, -1, all_class_num+5])
                 self.outfs.append(tmp_outf)
             self.formatted_outs = tf.concat(self.outfs, 1)
             self.pred_labels = self.formatted_outs[:, :, :all_class_num]

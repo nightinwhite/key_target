@@ -29,7 +29,7 @@ iteration = FLAGS.iteration
 # train_logist_length = tf.placeholder("float", [32])  # batch_size
 train_imgs = tf.placeholder("float", [None, None, None, 3])  # batch_size, H, W, C
 train_class_labels = tf.placeholder(tf.int32, [None, None])  # batch_size, logist_length
-train_loc_lables = tf.placeholder("float", [None, None, 4])  # batch_size, logist_length, box_corners
+train_loc_lables = tf.placeholder("float", [None, None, 5])  # batch_size, logist_length, box_corners
 train_mask = tf.placeholder("float", [None, None])  # batch_size, logist_length
 train_logist_length = tf.placeholder("float", [None])  # batch_size
 model = SSD_Net()
@@ -65,15 +65,15 @@ sess = tf.InteractiveSession()
 sess.run(tf.global_variables_initializer())
 # saver
 saver = tf.train.Saver()
-saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(238))
+# saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(238))
 # print("here")
 
 # data reader config
 imgs_path = "/home/hp/Data/train_data/slice_imgs"
-class_path = "/home/hp/Data/train_data/train_class_anns_new"
-boxs_path = "/home/hp/Data/train_data/train_box_anns_new"
-masks_path = "/home/hp/Data/train_data/train_box_masks_new"
-logist_length_path = "/home/hp/Data/train_data/train_logist_lengths_new"
+class_path = "/home/hp/Data/train_data/train_class_anns_new_angle"
+boxs_path = "/home/hp/Data/train_data/train_box_anns_new_angle"
+masks_path = "/home/hp/Data/train_data/train_box_masks_new_angle"
+logist_length_path = "/home/hp/Data/train_data/train_logist_lengths_new_angle"
 data_reader = data_reader(imgs_path, class_path, boxs_path, masks_path, logist_length_path, batch_size)
 
 # test node

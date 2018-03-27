@@ -1,37 +1,7 @@
 # coding:utf-8
-import tensorflow as tf
 import numpy as np
 import cv2
-
-# def batch_norm(x, is_training, decay=0.9, eps=1e-5):
-#     with tf.variable_scope("batch_norm"):
-#         shape = x.get_shape().as_list()
-#         assert len(shape) in [2, 3, 4]
-#         norm_num = shape[-1]
-#         beta = tf.get_variable(name="beta", shape=[norm_num],
-#                                dtype=tf.float32, initializer=tf.constant_initializer(0))
-#         gamma = tf.get_variable(name="beta", shape=[norm_num],
-#                                 dtype=tf.float32, initializer=tf.constant_initializer(1))
-#         if len(shape) == 2:
-#             batch_mean, batch_var = tf.nn.moments(x, [0])
-#         elif len(shape) == 3:
-#             batch_mean, batch_var = tf.nn.moments(x, [0, 1])
-#         else:
-#             batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2])
-#         ema = tf.train.ExponentialMovingAverage(decay=decay)
-#
-#         def mean_var_update_when_training():
-#             ema_apply_op = ema.apply([batch_mean, batch_var])
-#             with tf.control_dependencies([ema_apply_op]):
-#                 return tf.identity(batch_mean), tf.identity(batch_var)
-#
-#         def mean_var_update_when_not_training():
-#             return ema.average(batch_mean), ema.average(batch_var)
-#
-#         mean, var = tf.cond(is_training, mean_var_update_when_training, mean_var_update_when_not_training)
-#
-#         return tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
-
+from shapely.geometry import Polygon
 
 def get_out1_shape(img_height, img_width):
     out_h = int((int((int((img_height - 2 + 0.5) / 2) - 4) / 2 + 0.5) - 4) / 2 + 0.5)
@@ -234,6 +204,36 @@ def calc_intersection(r1, r2):
         return (right - left) * (bottom - top)
 
     return 0
+
+def PIOU(a, b):
+    def change_to_corners(c_x, c_y, w, h, angle):
+        w_c = w * np.cos(angle)
+        w_s = w * np.sin(angle)
+        h_c = h * np.cos(angle)
+        h_s = h * np.sin(angle)
+
+        x1 = c_x + (-w_c - h_s) / 2
+        x2 = c_x + (-w_c + h_s) / 2
+        x3 = c_x + (w_c + h_s) / 2
+        x4 = c_x + (w_c - h_s) / 2
+
+        y1 = c_y + (-w_s + h_c) / 2
+        y2 = c_y + (-w_s - h_c) / 2
+        y3 = c_y + (w_s - h_c) / 2
+        y4 = c_y + (w_s + h_c) / 2
+
+        return [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+    a_arr = change_to_corners(a[0], a[1], a[2], a[3], a[4])
+    b_arr = change_to_corners(b[0], b[1], b[2], b[3], b[4])
+    P_a = Polygon(a_arr)
+    P_b = Polygon(b_arr)
+    inter = P_a.intersection(P_b).area
+    # print(inter)
+    union = P_a.area + P_b.area - inter
+    if union == 0:
+        return 0
+    else:
+        return inter/union
 
 if __name__ == '__main__':
     print(get_out1_shape(514, 256))
