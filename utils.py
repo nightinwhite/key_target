@@ -1,8 +1,7 @@
 # coding:utf-8
 import numpy as np
 import cv2
-from shapely.geometry import Polygon
-
+import shapely.geometry
 def get_out1_shape(img_height, img_width):
     out_h = int((int((int((img_height - 2 + 0.5) / 2) - 4) / 2 + 0.5) - 4) / 2 + 0.5)
     out_w = int((int((int((img_width - 2 + 0.5) / 2) - 4) / 2 + 0.5) - 4) / 2 + 0.5)
@@ -225,8 +224,8 @@ def PIOU(a, b):
         return [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
     a_arr = change_to_corners(a[0], a[1], a[2], a[3], a[4])
     b_arr = change_to_corners(b[0], b[1], b[2], b[3], b[4])
-    P_a = Polygon(a_arr)
-    P_b = Polygon(b_arr)
+    P_a = shapely.geometry.Polygon(a_arr)
+    P_b = shapely.geometry.Polygon(b_arr)
     inter = P_a.intersection(P_b).area
     # print(inter)
     union = P_a.area + P_b.area - inter

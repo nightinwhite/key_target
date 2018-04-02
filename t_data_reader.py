@@ -2,10 +2,10 @@ from read_data import data_reader
 import numpy as np
 
 imgs_path = "/home/hp/Data/train_data/slice_imgs"
-class_path = "/home/hp/Data/train_data/train_class_anns_new"
-boxs_path = "/home/hp/Data/train_data/train_box_anns_new"
-masks_path = "/home/hp/Data/train_data/train_box_masks_new"
-logist_length_path = "/home/hp/Data/train_data/train_logist_lengths_new"
+class_path = "/home/hp/Data/train_data/train_class_anns_new_angle"
+boxs_path = "/home/hp/Data/train_data/train_box_anns_new_angle"
+masks_path = "/home/hp/Data/train_data/train_box_masks_new_angle"
+logist_length_path = "/home/hp/Data/train_data/train_logist_lengths_new_angle"
 
 data_reader = data_reader(imgs_path, class_path, boxs_path, masks_path, logist_length_path, 32)
 

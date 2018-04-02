@@ -4,7 +4,7 @@ import queue
 import os
 import threading
 import _thread
-
+import time
 class data_reader():
     def __init__(self, img_path, class_path, box_path, mask_path, logist_length_path, batch_size):
         self.img_path = img_path
@@ -87,6 +87,7 @@ class data_reader():
                 if tmp_data_queue.qsize() > self.batch_size:
                     can_use_queue.append(i)
             if len(can_use_queue) == 0:
+                time.sleep(0.01)
                 continue
             else:
                 # print(can_use_queue)
@@ -115,6 +116,7 @@ class data_reader():
             # print(tmp_data[5])
         tmp_imgs = np.asarray(tmp_imgs)
         tmp_class_s = np.asarray(tmp_class_s)
+        tmp_boxs = np.asarray(tmp_boxs)
         tmp_masks = np.asarray(tmp_masks)
         tmp_logist_lengths = np.asarray(tmp_logist_lengths)
         return tmp_imgs, tmp_class_s, tmp_boxs, tmp_masks, tmp_logist_lengths
@@ -128,6 +130,7 @@ class data_reader():
                 if tmp_data_queue.qsize() > self.batch_size:
                     can_use_queue.append(i)
             if len(can_use_queue) == 0:
+
                 continue
             else:
                 # print(can_use_queue)
@@ -156,6 +159,7 @@ class data_reader():
             tmp_key_names.append(tmp_data[5])
         tmp_imgs = np.asarray(tmp_imgs)
         tmp_class_s = np.asarray(tmp_class_s)
+        tmp_boxs = np.asarray(tmp_boxs)
         tmp_masks = np.asarray(tmp_masks)
         tmp_logist_lengths = np.asarray(tmp_logist_lengths)
         return tmp_imgs, tmp_class_s, tmp_boxs, tmp_masks, tmp_logist_lengths,tmp_key_names

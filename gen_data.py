@@ -76,7 +76,7 @@ def gen_single_data(img_path, anno_path):
                 tmp_box_y = tmp_box_ann[1]
                 if rand_x<tmp_box_x and tmp_box_x < rand_x + tmp_slice_w and rand_y<tmp_box_y and tmp_box_y < rand_y + tmp_slice_h and tmp_ann[0] != -1:
                     tmp_class_anns.append(tmp_ann[0])
-                    tmp_box_anns.append([tmp_ann[1][0] - rand_x, tmp_ann[1][1] - rand_y, tmp_ann[1][2], tmp_ann[1][3], tmp_ann[1][4]/np.pi])
+                    tmp_box_anns.append([tmp_ann[1][0] - rand_x, tmp_ann[1][1] - rand_y, tmp_ann[1][2], tmp_ann[1][3], tmp_ann[1][4]])
             tmp_save_name = "{0}_{1}_{2}_".format(img_name, ann_idx, s)
             cv2.imwrite("{0}/slice_imgs_angle/{1}.png".format(save_path, tmp_save_name), tmp_img)
             np.save("{0}/slice_box_anns_angle/{1}.npy".format(save_path, tmp_save_name), np.asarray(tmp_box_anns))

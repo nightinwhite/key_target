@@ -95,16 +95,16 @@ sess.run(tf.global_variables_initializer())
 # saver
 saver = tf.train.Saver()
 # saver.restore(sess, "models/e{0}_pixel_rate_background_0.5".format(98))#
-saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(238))#
+saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_with_angle".format(261))#
 
 
 test_imgs = []
-test_name = "mn388_8_0_"
-test_img = cv2.imread("/home/hp/Data/train_data/slice_imgs/{0}.png".format(test_name))
-test_ann = np.load("/home/hp/Data/train_data/slice_box_anns/{0}.npy".format(test_name))
-test_class = np.load("/home/hp/Data/train_data/slice_class_anns/{0}.npy".format(test_name))
-test_train_ann =np.load("/home/hp/Data/train_data/train_box_anns_new/{0}.npy".format(test_name))
-test_train_class = np.load("/home/hp/Data/train_data/train_class_anns_new/{0}.npy".format(test_name))
+test_name = "mn470_13_2_"
+test_img = cv2.imread("/home/hp/Data/train_data/slice_imgs_angle/{0}.png".format(test_name))
+test_ann = np.load("/home/hp/Data/train_data/slice_box_anns_angle/{0}.npy".format(test_name))
+test_class = np.load("/home/hp/Data/train_data/slice_class_anns_angle/{0}.npy".format(test_name))
+test_train_ann =np.load("/home/hp/Data/train_data/train_box_anns_new_angle/{0}.npy".format(test_name))
+test_train_class = np.load("/home/hp/Data/train_data/train_class_anns_new_angle/{0}.npy".format(test_name))
 test_imgs.append(test_img)
 res_preds,res_locs = sess.run([model_pred, model.pred_locs], feed_dict={train_imgs:test_imgs})
 
@@ -132,10 +132,11 @@ for i in range(len(test_imgs)):
             tmp_real_c_y = tmp_default_c_y + tmp_loc[j][1] * tmp_default_h
             tmp_real_w = tmp_default_w + tmp_loc[j][2] * tmp_default_w
             tmp_real_h = tmp_default_h + tmp_loc[j][3] * tmp_default_h
+            tmp_real_angle = tmp_loc[j][4] * np.pi
             if tmp_real_w <0 or tmp_real_h < 0:
                 continue
             tmp_all_boxs.append(
-                [[tmp_real_c_x, tmp_real_c_y, tmp_real_w, tmp_real_h],
+                [[tmp_real_c_x, tmp_real_c_y, tmp_real_w, tmp_real_h, tmp_real_angle],
                  [tmp_pred_class[j], tmp_pred[j][tmp_pred_class[j]]], True])
     tmp_res_boxs = tmp_all_boxs
     # tmp_res_boxs = tmp_all_boxs
@@ -143,7 +144,7 @@ for i in range(len(test_imgs)):
     for res_box in tmp_res_boxs:
         if res_box[1][0]!=7:
             tmp_color = class_color_map[res_box[1][0]]
-            tmp_contour = rec_centre_To_corners_L(res_box[0])
+            tmp_contour = mrec_centre_To_mrec_corners_L(res_box[0])
             tmp_contour = np.asarray(tmp_contour)
             # print(res_box[0])
             tst_contours = [tmp_contour]
@@ -156,7 +157,8 @@ for i in range(len(test_imgs)):
         # print (res_box, test_class[m])
         if test_class[m]!=7:
             tmp_color = class_color_map[test_class[m]]
-            tmp_contour = rec_centre_To_corners_L(res_box)
+            res_box[4] = res_box[4] * np.pi
+            tmp_contour = mrec_centre_To_mrec_corners_L(res_box)
             tmp_contour = np.asarray(tmp_contour)
             # print(res_box)
             tst_contours = [tmp_contour]
@@ -176,8 +178,9 @@ for i in range(len(test_imgs)):
             tmp_real_c_y = tmp_default_c_y + test_train_ann[j][1] * tmp_default_h
             tmp_real_w = tmp_default_w + test_train_ann[j][2] * tmp_default_w
             tmp_real_h = tmp_default_h + test_train_ann[j][3] * tmp_default_h
+            tmp_real_angle = test_train_ann[j][4] * np.pi
             tmp_color = class_color_map[test_train_class[j]]
-            tmp_contour = rec_centre_To_corners_L([tmp_real_c_x,tmp_real_c_y,tmp_real_w,tmp_real_h])
+            tmp_contour = mrec_centre_To_mrec_corners_L([tmp_real_c_x,tmp_real_c_y,tmp_real_w,tmp_real_h, tmp_real_angle])
             tmp_contour = np.asarray(tmp_contour)
             # print(res_box[0])
             tst_contours = [tmp_contour]

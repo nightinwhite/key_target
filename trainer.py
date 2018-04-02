@@ -65,7 +65,7 @@ sess = tf.InteractiveSession()
 sess.run(tf.global_variables_initializer())
 # saver
 saver = tf.train.Saver()
-# saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(238))
+# saver.restore(sess, "models/e{0}_pixel_rate_loss_V3_with_angle".format(111))
 # print("here")
 
 # data reader config
@@ -146,5 +146,5 @@ for e in range(epoch):
         sys.stdout.write("{4}/{5}:class_l:{0}, loc_l:{1}, total_l:{2},acc:{3}, all_acc:{6}".format(e_class_loss/(i+1), e_loc_loss/(i+1), e_total_loss/(i+1), e_class_acc/(i+1), e, i,e_all_class_acc/(i+1)))
         sys.stdout.flush()
     print("")
-    saver.save(sess, "models/e{0}_pixel_rate_loss_V3_background_0.5_new_bn".format(e))
+    saver.save(sess, "models/e{0}_pixel_rate_loss_V3_with_angle_model_0.75".format(e))
 

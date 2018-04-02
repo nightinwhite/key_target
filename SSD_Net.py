@@ -16,7 +16,7 @@ class SSD_Net:
 
 
     def channel_scale(self,channels):
-        return channels//4
+        return channels//4*3
 
     def encoder(self, x, is_training=True, reuse=False):
         x = x / 255.
@@ -42,17 +42,17 @@ class SSD_Net:
             all_class_num = self.class_num + 1
 
             self.out1 = self.conv_layer(inception_net.key_point["MaxPool_p7_3x3"], [3, 3], self.channel_scale(192), self.layer_boxs[0]*(all_class_num + 5), is_training, scope="out1",
-                                   activation_fn=None, is_bn= False)
+                                   activation_fn=None)
             self.out2 = self.conv_layer(self.conv7, [3, 3], self.channel_scale(1024), self.layer_boxs[1]* (all_class_num + 5), is_training, scope="out2",
-                                   activation_fn=None,is_bn= False)
+                                   activation_fn=None)
             self.out3 = self.conv_layer(self.conv8_2, [3, 3], self.channel_scale(512), self.layer_boxs[2]* (all_class_num + 5), is_training, scope="out3",
-                                   activation_fn=None,is_bn= False)
+                                   activation_fn=None)
             self.out4 = self.conv_layer(self.conv9_2, [3, 3], self.channel_scale(256), self.layer_boxs[3]* (all_class_num + 5), is_training, scope="out4",
-                                   activation_fn=None,is_bn= False)
+                                   activation_fn=None)
             self.out5 = self.conv_layer(self.conv10_2, [3, 3], self.channel_scale(256), self.layer_boxs[4]* (all_class_num + 5), is_training, scope="out5",
-                                   activation_fn=None,is_bn= False)
+                                   activation_fn=None)
             self.out6 = self.conv_layer(self.p11, [3, 3], self.channel_scale(256), self.layer_boxs[5]* (all_class_num + 5), is_training, scope="out6",
-                                   activation_fn=None,is_bn= False)
+                                   activation_fn=None)
             self.outs = [self.out1, self.out2, self.out3, self.out4, self.out5, self.out6]
             self.outfs = []
             for i, out in enumerate(self.outs):
